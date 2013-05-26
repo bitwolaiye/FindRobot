@@ -1,26 +1,32 @@
 # encoding:utf8
-from scrapy.http import Request, Response, HtmlResponse
+import os
+import urllib
+import urllib2
+import cookielib
+from gzip import GzipFile
+from StringIO import StringIO
+import zlib
+import sqlite3
+import base64
+import re
+import json
+import binascii
+import socket
+import rsa
+
+import webkit, gtk, jswebkit
+import settings
+
+from scrapy.http import HtmlResponse
 from scrapy.selector import HtmlXPathSelector
 from scrapy.spider import BaseSpider
 from Scrapy.items import *
-from scrapy.http import Request, FormRequest, HtmlResponse
-
-import gtk
-import webkit
-import jswebkit
-import settings
-from scrapy.http import Request, FormRequest, HtmlResponse
-
-import gtk
-import webkit
-import jswebkit
-import settings
 
 __author__ = 'zhouqi'
 
 
-class DmozSpider(BaseSpider):
-    name = "dmoz"
+class WeibUserSpider(BaseSpider):
+    name = "weibouser"
     allowed_domains = ["baidu.com"]
     start_urls = [
         "http://baidu.com/",
@@ -33,20 +39,8 @@ class DmozSpider(BaseSpider):
         login = my_login(username,pwd,cookie_file)
         login_status = login.weibo_login()
         if login_status:
-            url = 'http://club.weibo.com/search?order=1&page=1&gender='
-            result = login.get_html(url)
-            # print(response.body)
-            response = response.replace(**{'body':result})
-            print(response.body)
 
-
-            webview = webkit.WebView()
-            webview.connect( 'load-finished', lambda v,f: gtk.main_quit() )
-            webview.load_html_string(result,url)
-
-            gtk.main()
-            js = jswebkit.JSContext( webview.get_main_frame().get_global_context() )
-            renderedBody = str( js.EvaluateScript( 'document.body.innerHTML' ) )
+            base_url = 'http://club.weibo.com/search?order=1&page='
             t = '''<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -55,77 +49,55 @@ class DmozSpider(BaseSpider):
 %s
 </body>
 </html>'''
-            renderedBody = t % renderedBody
+            for i in range(1, 2):
+                url = base_url + str(i)
+                result = login.get_html(url)
+                webview = webkit.WebView()
+                webview.connect( 'load-finished', lambda v,f: gtk.main_quit() )
+                webview.load_html_string(result,url)
+                gtk.main()
+                js = jswebkit.JSContext( webview.get_main_frame().get_global_context() )
+                renderedBody = str( js.EvaluateScript( 'document.body.innerHTML' ) )
+                renderedBody = t % renderedBody
 
-            f = open('2.html', 'w')
-            f.write(renderedBody)
-            f.close()
-            print renderedBody
-            #r =  HtmlResponse( url, body=renderedBody )
-            # response.body = result
-            response = response.replace(**{'body':renderedBody})
-            hxs = HtmlXPathSelector(response)
-            print hxs.select('//title/text()').extract()
+                f = open('2.html', 'w')
+                f.write(renderedBody)
+                f.close()
 
-            infos = hxs.select('//div[@class=\'avatar_list_one\']').extract()
-            print len(infos)
-            for each in infos:
-                hxs2 = HtmlXPathSelector(HtmlResponse('', body=each, encoding='utf-8'))
-                w = WeiboUserItem()
-                print hxs2.select('.//a[@class=\'CH cut9\']/text()').extract()[0]
-                w['username'] = hxs2.select('.//a[@class=\'CH cut9\']/text()').extract()[0]
-                w['small_avatar'] = hxs2.select('.//div[@class=\'avatar\']/a/img/@src').extract()[0]
-                desc = hxs2.select('.//div/span[@class=\'W_textb\']/text()').extract()
-                if desc:
-                    w['user_desc'] = desc[0]
-                else:
-                    w['user_desc'] = ''
-                gender = hxs2.select('.//div/span/img/@class').extract()[0]
-                if gender == 'male':
-                    w['gender'] = 1
-                elif gender == 'female':
-                    w['gender'] = 0
-                print w['username']
-                print w['small_avatar']
-                print w['user_desc']
-                print w['gender']
-                try:
-                    w.save()
-                except:
-                    w['user_desc'] = ''
-                    w.save()
-            # w = WeiboUserItem()
-            # w['username'] = 'abc'
-            # w['small_avatar'] = 'abc'
-            # w['user_desc'] =  'abc'
-            # w['gender'] = 1
-            # w.save()
+                response = response.replace(**{'body':renderedBody})
+                hxs = HtmlXPathSelector(response)
 
-        # request_with_cookies = Request(url="http://club.weibo.com/search?order=1&page=1&gender=", callback=self.parse_page2)
-        # return request_with_cookies
-        # filename = response.url.split("/")[-2]
-        # open(filename, 'wb').write(response.body)
-
-    def parse_page2(self, response):
-        filename = response.url.split("/")[-2]
-        open(filename, 'wb').write(response.body)
+                infos = hxs.select('//div[@class=\'avatar_list_one\']').extract()
+                for each in infos:
+                    hxs2 = HtmlXPathSelector(HtmlResponse('', body=each, encoding='utf-8'))
+                    w = WeiboUserItem()
+                    w['weibo_uid'] = hxs2.select('.//a[@class=\'CH cut9\']/href()').extract()[0].split('/')[-1]
+                    w['username'] = hxs2.select('.//a[@class=\'CH cut9\']/text()').extract()[0]
+                    w['small_avatar'] = hxs2.select('.//div[@class=\'avatar\']/a/img/@src').extract()[0]
+                    desc = hxs2.select('.//div/span[@class=\'W_textb\']/text()').extract()
+                    if desc:
+                        w['user_desc'] = desc[0]
+                    else:
+                        w['user_desc'] = ''
+                    gender = hxs2.select('.//div/span/img/@class').extract()[0]
+                    if gender == 'male':
+                        w['gender'] = 1
+                    elif gender == 'female':
+                        w['gender'] = 0
+                    print w['username']
+                    print w['small_avatar']
+                    print w['user_desc']
+                    print w['gender']
+                    try:
+                        w.save()
+                    except:
+                        w['user_desc'] = ''
+                        w.save()
 
 
 
 
-import os
-import urllib
-import urllib2
-import cookielib
-from gzip import GzipFile
-from StringIO import StringIO
-import zlib
-import sqlite3
-import base64
-import re
-import json
-import binascii, rsa
-import socket
+
 
 socket.setdefaulttimeout(10)
 
