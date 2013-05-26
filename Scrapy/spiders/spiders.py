@@ -9,6 +9,12 @@ import gtk
 import webkit
 import jswebkit
 import settings
+from scrapy.http import Request, FormRequest, HtmlResponse
+
+import gtk
+import webkit
+import jswebkit
+import settings
 
 __author__ = 'zhouqi'
 
@@ -36,23 +42,45 @@ class DmozSpider(BaseSpider):
 
             webview = webkit.WebView()
             webview.connect( 'load-finished', lambda v,f: gtk.main_quit() )
-            webview.load_uri( request.url )
+            webview.load_html_string(result,url)
+
             gtk.main()
             js = jswebkit.JSContext( webview.get_main_frame().get_global_context() )
             renderedBody = str( js.EvaluateScript( 'document.body.innerHTML' ) )
-            return HtmlResponse( request.url, body=renderedBody )
+            t = '''<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+</head>
+<body>
+%s
+</body>
+</html>'''
+            renderedBody = t % renderedBody
+
+            f = open('2.html', 'w')
+            f.write(renderedBody)
+            f.close()
+            print renderedBody
+            #r =  HtmlResponse( url, body=renderedBody )
             # response.body = result
+            response = response.replace(**{'body':renderedBody})
             hxs = HtmlXPathSelector(response)
             print hxs.select('//title/text()').extract()
 
-            infos = hxs.select('//div[@class=\'box_con\']').extract()
+            infos = hxs.select('//div[@class=\'avatar_list_one\']').extract()
             print len(infos)
             for each in infos:
+                hxs2 = HtmlXPathSelector(HtmlResponse('', body=each, encoding='utf-8'))
                 w = WeiboUserItem()
-                w['username'] = each.select('.//a[@class=\'CH cut9\']/text()').extract()[0]
-                w['small_avatar'] = each.select('.//div[@class=\'avatar\']/a/img/@src').extract()[0]
-                w['user_desc'] = each.select('.//div/span[@class=\'W_textb\']/text()').extract()[0]
-                gender = each.select('.//div/span/img/@class').extract()[0]
+                print hxs2.select('.//a[@class=\'CH cut9\']/text()').extract()[0]
+                w['username'] = hxs2.select('.//a[@class=\'CH cut9\']/text()').extract()[0]
+                w['small_avatar'] = hxs2.select('.//div[@class=\'avatar\']/a/img/@src').extract()[0]
+                desc = hxs2.select('.//div/span[@class=\'W_textb\']/text()').extract()
+                if desc:
+                    w['user_desc'] = desc[0]
+                else:
+                    w['user_desc'] = ''
+                gender = hxs2.select('.//div/span/img/@class').extract()[0]
                 if gender == 'male':
                     w['gender'] = 1
                 elif gender == 'female':
@@ -61,7 +89,11 @@ class DmozSpider(BaseSpider):
                 print w['small_avatar']
                 print w['user_desc']
                 print w['gender']
-                w.save()
+                try:
+                    w.save()
+                except:
+                    w['user_desc'] = ''
+                    w.save()
             # w = WeiboUserItem()
             # w['username'] = 'abc'
             # w['small_avatar'] = 'abc'
@@ -247,7 +279,7 @@ class my_login:
         else:
             fileChrome = r'C:/Users/XXXXX/AppData/Local/Google/Chrome/User Data/Default/Cookies'#XXXX换为你的用户名win7
             fileChrome = r'/Users/zhouqi/Library/Application Support/Google/Chrome/Default/Cookies'
-            fileChrome = r'~/.config/google-chrome/Default/Cookies'
+            fileChrome = r'/home/zhouqi/.config/chromium/Default/Cookies'
             conn = sqlite3.connect(fileChrome)
             conn.text_factory = str
             cur = conn.cursor()

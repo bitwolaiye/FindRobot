@@ -28,7 +28,7 @@ def setup_django_env(path):
 
     setup_environ(project)
 
-setup_django_env('/Users/zhouqi/work/FindRobot/FindRobot/')
+setup_django_env('/home/zhouqi/work/FindRobot/FindRobot/')
 
 #which spider should use WEBKIT
 WEBKIT_DOWNLOADER=['ccb']
