@@ -24,6 +24,14 @@ from Scrapy.items import *
 
 __author__ = 'zhouqi'
 
+t = '''<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+</head>
+<body>
+%s
+</body>
+</html>'''
 
 class WeibUserSpider(BaseSpider):
     name = "weibouser"
@@ -49,14 +57,6 @@ class WeibUserSpider(BaseSpider):
         username = 'bitwolaiye@gmail.com'
         pwd = 'i0i0i0i0'
         cookie_file  = 'cookie.dat'
-        t = '''<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-</head>
-<body>
-%s
-</body>
-</html>'''
         index_file = open('index', 'r')
         last = index_file.read()
         index_file.close()
@@ -118,7 +118,22 @@ class WeibUserSpider(BaseSpider):
         index_file.close()
 
 
+class WeibAlbumsSpider(BaseSpider):
+    name = "weiboalbums"
+    allowed_domains = ["baidu.com"]
+    start_urls = ['http://baidu.com',]
 
+    def parse(self, response):
+        username = 'bitwolaiye@gmail.com'
+        pwd = 'i0i0i0i0'
+        cookie_file  = 'cookie.dat'
+        url = 'http://photo.weibo.com/1758022967/albums'
+        login = my_login(username,pwd,cookie_file)
+        login.weibo_login()
+        result = login.get_html(url)
+        f = open('albums.html', 'w')
+        f.write(result)
+        f.close()
 
 
 
