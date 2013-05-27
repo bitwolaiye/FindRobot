@@ -14,10 +14,11 @@ import binascii
 import socket
 import rsa, time
 
-import webkit, gtk, jswebkit
+# import webkit, gtk, jswebkit
 import settings
+from scrapy.contrib.spiders import CrawlSpider
 
-from scrapy.http import HtmlResponse
+from scrapy.http import HtmlResponse, FormRequest, Request
 from scrapy.selector import HtmlXPathSelector
 from scrapy.spider import BaseSpider
 from Scrapy.items import *
@@ -53,69 +54,69 @@ class WeibUserSpider(BaseSpider):
                 f.close()
 
 
-    def parse(self, response):
-        username = 'bitwolaiye@gmail.com'
-        pwd = 'i0i0i0i0'
-        cookie_file  = 'cookie.dat'
-        index_file = open('index', 'r')
-        last = index_file.read()
-        index_file.close()
-        if last and int(last)<51:
-            i = int(last) + 1
-        elif len(last) == 0:
-            i = 1
-        else:
-            return
-
-        base_url = 'http://club.weibo.com/search?order=1&page='
-        url = base_url + str(i)
-
-        login = my_login(username,pwd,cookie_file)
-        login.weibo_login()
-        result = login.get_html(url)
-
-        webview = webkit.WebView()
-        webview.connect( 'load-finished', lambda v,f: gtk.main_quit() )
-        webview.load_html_string(result,url)
-
-        gtk.main()
-        js = jswebkit.JSContext( webview.get_main_frame().get_global_context() )
-        renderedBody = str( js.EvaluateScript( 'document.body.innerHTML' ) )
-        renderedBody = t % renderedBody
-
-        response = response.replace(**{'body':renderedBody})
-        hxs = HtmlXPathSelector(response)
-
-        infos = hxs.select('//div[@class=\'avatar_list_one\']').extract()
-        for each in infos:
-            hxs2 = HtmlXPathSelector(HtmlResponse('', body=each, encoding='utf-8'))
-            w = WeiboUserItem()
-            w['weibo_uid'] = hxs2.select('.//a[@class=\'CH cut9\']/@href').extract()[0].split('/')[-1]
-            w['username'] = hxs2.select('.//a[@class=\'CH cut9\']/text()').extract()[0]
-            w['small_avatar'] = hxs2.select('.//div[@class=\'avatar\']/a/img/@src').extract()[0]
-            desc = hxs2.select('.//div/span[@class=\'W_textb\']/text()').extract()
-            if desc:
-                w['user_desc'] = desc[0]
-            else:
-                w['user_desc'] = ''
-            gender = hxs2.select('.//div/span/img/@class').extract()[0]
-            if gender == 'male':
-                w['gender'] = 1
-            elif gender == 'female':
-                w['gender'] = 0
-            print w['username']
-            print w['small_avatar']
-            print w['user_desc']
-            print w['gender']
-            try:
-                w.save()
-            except:
-                w['user_desc'] = ''
-                w.save()
-
-        index_file = open('index', 'w')
-        index_file.write(str(i))
-        index_file.close()
+    # def parse(self, response):
+    #     username = 'bitwolaiye@gmail.com'
+    #     pwd = 'i0i0i0i0'
+    #     cookie_file  = 'cookie.dat'
+    #     index_file = open('index', 'r')
+    #     last = index_file.read()
+    #     index_file.close()
+    #     if last and int(last)<51:
+    #         i = int(last) + 1
+    #     elif len(last) == 0:
+    #         i = 1
+    #     else:
+    #         return
+    #
+    #     base_url = 'http://club.weibo.com/search?order=1&page='
+    #     url = base_url + str(i)
+    #
+    #     login = my_login(username,pwd,cookie_file)
+    #     login.weibo_login()
+    #     result = login.get_html(url)
+    #
+    #     webview = webkit.WebView()
+    #     webview.connect( 'load-finished', lambda v,f: gtk.main_quit() )
+    #     webview.load_html_string(result,url)
+    #
+    #     gtk.main()
+    #     js = jswebkit.JSContext( webview.get_main_frame().get_global_context() )
+    #     renderedBody = str( js.EvaluateScript( 'document.body.innerHTML' ) )
+    #     renderedBody = t % renderedBody
+    #
+    #     response = response.replace(**{'body':renderedBody})
+    #     hxs = HtmlXPathSelector(response)
+    #
+    #     infos = hxs.select('//div[@class=\'avatar_list_one\']').extract()
+    #     for each in infos:
+    #         hxs2 = HtmlXPathSelector(HtmlResponse('', body=each, encoding='utf-8'))
+    #         w = WeiboUserItem()
+    #         w['weibo_uid'] = hxs2.select('.//a[@class=\'CH cut9\']/@href').extract()[0].split('/')[-1]
+    #         w['username'] = hxs2.select('.//a[@class=\'CH cut9\']/text()').extract()[0]
+    #         w['small_avatar'] = hxs2.select('.//div[@class=\'avatar\']/a/img/@src').extract()[0]
+    #         desc = hxs2.select('.//div/span[@class=\'W_textb\']/text()').extract()
+    #         if desc:
+    #             w['user_desc'] = desc[0]
+    #         else:
+    #             w['user_desc'] = ''
+    #         gender = hxs2.select('.//div/span/img/@class').extract()[0]
+    #         if gender == 'male':
+    #             w['gender'] = 1
+    #         elif gender == 'female':
+    #             w['gender'] = 0
+    #         print w['username']
+    #         print w['small_avatar']
+    #         print w['user_desc']
+    #         print w['gender']
+    #         try:
+    #             w.save()
+    #         except:
+    #             w['user_desc'] = ''
+    #             w.save()
+    #
+    #     index_file = open('index', 'w')
+    #     index_file.write(str(i))
+    #     index_file.close()
 
 
 class WeibAlbumsSpider(BaseSpider):
@@ -134,6 +135,58 @@ class WeibAlbumsSpider(BaseSpider):
         f = open('albums.html', 'w')
         f.write(result)
         f.close()
+
+
+
+class WeiboSpider(CrawlSpider):
+    name = 'weibo'
+    allowed_domains = ['weibo.com', 'sina.com.cn']
+
+
+    def start_requests(self):
+        username = 'tcl_java@163.com'
+        url = 'http://login.sina.com.cn/sso/prelogin.php?entry=miniblog&callback=sinaSSOController.preloginCallBack&user=%s&client=ssologin.js(v1.3.14)&_=%s' % \
+        (username, str(time.time()).replace('.', ''))
+        print url
+        return [Request(url=url, method='get', callback=self.post_message)]
+
+    def post_message(self, response):
+        print(response.body)
+        serverdata = re.findall('"servertime":(.*?),', response.body, re.I)[0]
+        print serverdata
+        servertime = serverdata
+        print servertime
+        noncedata = re.findall('"nonce":"(.*?)",', response.body, re.I)[0]
+        nonce = noncedata
+        print nonce
+        formdata = {"entry" : 'miniblog',
+        "gateway" : '1',
+        "from" : "",
+        "savestate" : '7',
+        "useticket" : '1',
+        "ssosimplelogin" : '1',
+        "username" : 'bitwolaiye@gmail.com',
+        "service" : 'miniblog',
+        "servertime" : servertime,
+        "nonce" : nonce,
+        "pwencode" : 'wsse',
+        "password" : 'i0i0i0i0',
+        "encoding" : 'utf-8',
+        "url" : 'http://weibo.com/ajaxlogin.php?framelogin=1&callback=parent.sinaSSOController.feedBackUrlCallBack',
+        "returntype" : 'META'}
+
+        return [FormRequest(url = 'http://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.3.14)',
+        formdata = formdata,callback=self.check_page) ]
+
+    def check_page(self, response):
+        url = 'http://weibo.com/'
+        request = response.request.replace(url=url, method='get', callback=self.parse_item)
+        return request
+
+
+    def parse_item(self, response):
+        with open('%s%s%s' % (os.getcwd(), os.sep, 'logged.html'), 'wb') as f:
+            f.write(response.body)
 
 
 
