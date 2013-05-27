@@ -10,10 +10,11 @@ BOT_NAME = 'Scrapy'
 
 SPIDER_MODULES = ['Scrapy.spiders']
 NEWSPIDER_MODULE = 'Scrapy.spiders'
-
+CONCURRENT_REQUESTS_PER_DOMAIN = 1
+CONCURRENT_REQUESTS = 1
+CONCURRENT_REQUESTS_PER_IP = 1
 DOWNLOADER_MIDDLEWARES = {
     'scrapy.contrib.downloadermiddleware.cookies.CookiesMiddleware': None,
-    # 'Scrapy.WebkitDownloader.WebkitDownloader': 543,
 }
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent

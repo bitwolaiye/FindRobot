@@ -12,7 +12,7 @@ import re
 import json
 import binascii
 import socket
-import rsa
+import rsa, time
 
 import webkit, gtk, jswebkit
 import settings
@@ -28,20 +28,28 @@ __author__ = 'zhouqi'
 class WeibUserSpider(BaseSpider):
     name = "weibouser"
     allowed_domains = ["baidu.com"]
-    start_urls = [
-        "http://baidu.com/",
-    ]
+    start_urls = ['http://baidu.com',]
 
-    def parse(self, response):
+    def parse2(self, response):
         username = 'bitwolaiye@gmail.com'
         pwd = 'i0i0i0i0'
         cookie_file  = 'cookie.dat'
         login = my_login(username,pwd,cookie_file)
         login_status = login.weibo_login()
         if login_status:
-
             base_url = 'http://club.weibo.com/search?order=1&page='
-            t = '''<html xmlns="http://www.w3.org/1999/xhtml">
+            for i in range(1, 11):
+                result = login.get_html(base_url+str(i))
+                f = open(str(i)+'.html', 'w')
+                f.write(result)
+                f.close()
+
+
+    def parse(self, response):
+        username = 'bitwolaiye@gmail.com'
+        pwd = 'i0i0i0i0'
+        cookie_file  = 'cookie.dat'
+        t = '''<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 </head>
@@ -49,50 +57,65 @@ class WeibUserSpider(BaseSpider):
 %s
 </body>
 </html>'''
-            for i in range(1, 2):
-                url = base_url + str(i)
-                result = login.get_html(url)
-                webview = webkit.WebView()
-                webview.connect( 'load-finished', lambda v,f: gtk.main_quit() )
-                webview.load_html_string(result,url)
-                gtk.main()
-                js = jswebkit.JSContext( webview.get_main_frame().get_global_context() )
-                renderedBody = str( js.EvaluateScript( 'document.body.innerHTML' ) )
-                renderedBody = t % renderedBody
+        index_file = open('index', 'r')
+        last = index_file.read()
+        index_file.close()
+        if last and int(last)<51:
+            i = int(last) + 1
+        elif len(last) == 0:
+            i = 1
+        else:
+            return
 
-                f = open('2.html', 'w')
-                f.write(renderedBody)
-                f.close()
+        base_url = 'http://club.weibo.com/search?order=1&page='
+        url = base_url + str(i)
 
-                response = response.replace(**{'body':renderedBody})
-                hxs = HtmlXPathSelector(response)
+        login = my_login(username,pwd,cookie_file)
+        login.weibo_login()
+        result = login.get_html(url)
 
-                infos = hxs.select('//div[@class=\'avatar_list_one\']').extract()
-                for each in infos:
-                    hxs2 = HtmlXPathSelector(HtmlResponse('', body=each, encoding='utf-8'))
-                    w = WeiboUserItem()
-                    w['weibo_uid'] = hxs2.select('.//a[@class=\'CH cut9\']/href()').extract()[0].split('/')[-1]
-                    w['username'] = hxs2.select('.//a[@class=\'CH cut9\']/text()').extract()[0]
-                    w['small_avatar'] = hxs2.select('.//div[@class=\'avatar\']/a/img/@src').extract()[0]
-                    desc = hxs2.select('.//div/span[@class=\'W_textb\']/text()').extract()
-                    if desc:
-                        w['user_desc'] = desc[0]
-                    else:
-                        w['user_desc'] = ''
-                    gender = hxs2.select('.//div/span/img/@class').extract()[0]
-                    if gender == 'male':
-                        w['gender'] = 1
-                    elif gender == 'female':
-                        w['gender'] = 0
-                    print w['username']
-                    print w['small_avatar']
-                    print w['user_desc']
-                    print w['gender']
-                    try:
-                        w.save()
-                    except:
-                        w['user_desc'] = ''
-                        w.save()
+        webview = webkit.WebView()
+        webview.connect( 'load-finished', lambda v,f: gtk.main_quit() )
+        webview.load_html_string(result,url)
+
+        gtk.main()
+        js = jswebkit.JSContext( webview.get_main_frame().get_global_context() )
+        renderedBody = str( js.EvaluateScript( 'document.body.innerHTML' ) )
+        renderedBody = t % renderedBody
+
+        response = response.replace(**{'body':renderedBody})
+        hxs = HtmlXPathSelector(response)
+
+        infos = hxs.select('//div[@class=\'avatar_list_one\']').extract()
+        for each in infos:
+            hxs2 = HtmlXPathSelector(HtmlResponse('', body=each, encoding='utf-8'))
+            w = WeiboUserItem()
+            w['weibo_uid'] = hxs2.select('.//a[@class=\'CH cut9\']/@href').extract()[0].split('/')[-1]
+            w['username'] = hxs2.select('.//a[@class=\'CH cut9\']/text()').extract()[0]
+            w['small_avatar'] = hxs2.select('.//div[@class=\'avatar\']/a/img/@src').extract()[0]
+            desc = hxs2.select('.//div/span[@class=\'W_textb\']/text()').extract()
+            if desc:
+                w['user_desc'] = desc[0]
+            else:
+                w['user_desc'] = ''
+            gender = hxs2.select('.//div/span/img/@class').extract()[0]
+            if gender == 'male':
+                w['gender'] = 1
+            elif gender == 'female':
+                w['gender'] = 0
+            print w['username']
+            print w['small_avatar']
+            print w['user_desc']
+            print w['gender']
+            try:
+                w.save()
+            except:
+                w['user_desc'] = ''
+                w.save()
+
+        index_file = open('index', 'w')
+        index_file.write(str(i))
+        index_file.close()
 
 
 

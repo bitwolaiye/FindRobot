@@ -1,6 +1,7 @@
 # encoding:utf8
 
 from django.db import models
+import webkit, gtk, jswebkit
 
 # Create your models here.
 
@@ -15,6 +16,23 @@ class WeiboUser(models.Model):
 
     class Meta:
         db_table = 'weibo_user'
+
+    @classmethod
+    def load(cls, i):
+        result = '\n'.join(file('%d.html' % i).readlines())
+        webview = webkit.WebView()
+        webview.connect( 'load-finished', lambda v,f: gtk.main_quit() )
+        webview.load_uri('file:///home/zhouqi/work/FindRobot/%d.html' % i)
+        #webview.load_html_string(result,'')
+
+        gtk.main()
+        js = jswebkit.JSContext( webview.get_main_frame().get_global_context() )
+        res = js.EvaluateScript('window.location.href')
+        renderedBody = str( js.EvaluateScript( 'document.body.innerHTML' ) )
+
+        f = open(str(i)+'_1.html', 'w')
+        f.write(renderedBody)
+        f.close()
 
 
 class PicWeibo(models.Model):
