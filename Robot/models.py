@@ -13,6 +13,7 @@ class WeiboUser(models.Model):
     user_desc = models.CharField(max_length=500, null=True)
     gender = models.PositiveSmallIntegerField(default=0)
     getcai_uid = models.BigIntegerField(null=True)
+    selected = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         db_table = 'weibo_user'

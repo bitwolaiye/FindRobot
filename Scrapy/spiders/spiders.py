@@ -127,7 +127,7 @@ class WeibAlbumsSpider(BaseSpider):
         username = 'bitwolaiye@gmail.com'
         pwd = 'i0i0i0i0'
         cookie_file  = 'cookie.dat'
-        url = 'http://photo.weibo.com/1758022967/albums'
+        url = 'http://photo.weibo.com/1758022967/talbum/index#!/mode/1/page/1'
         login = my_login(username,pwd,cookie_file)
         login.weibo_login()
         result = login.get_html(url)
@@ -135,6 +135,11 @@ class WeibAlbumsSpider(BaseSpider):
         f.write(result)
         f.close()
 
+
+#str1 = str % ''.join([('<a href=\'http://photo.weibo.com/%s/talbum/index#!/mode/3/page/1\'>%s</a>&nbsp;' % (each.weibo_uid,index)) + (index % 10 == 0 and '<p></p>' or '&nbsp;' )  for index,each in enumerate(users) ])
+#f=open('1.html', 'w')
+#f.write(str1)
+#f.close()
 
 
 socket.setdefaulttimeout(10)
